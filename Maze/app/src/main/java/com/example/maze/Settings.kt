@@ -69,7 +69,7 @@ fun SettingMenu(
                     .border(2.dp, Color(0xFF80DEEA), RoundedCornerShape(8.dp))
                     .padding(vertical = 8.dp)
             ) {
-                Text("Hồ Sơ", color = Color.White)
+                Text("Xếp Hạng", color = Color.White)
             }
 
             // Nút Xem Lịch Sử

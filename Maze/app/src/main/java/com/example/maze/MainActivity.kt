@@ -36,7 +36,7 @@ class MainActivity : ComponentActivity() {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun MazeAppGame() {
+fun MazeAppGame(username: String = "") { // Thêm tham số username
     var gameState by remember { mutableStateOf(GameState()) }
     var levelSelected by remember { mutableStateOf(false) }
     var purchasedIcons by remember { mutableStateOf(listOf<Int>()) }
@@ -45,7 +45,7 @@ fun MazeAppGame() {
     var showWinDialog by remember { mutableStateOf(false) }
     var showHistoryDialog by remember { mutableStateOf(false) }
     var showSoundDialog by remember { mutableStateOf(false) }
-    var showHelpDialog by remember { mutableStateOf(false) } // Biến cho HelpDialog
+    var showHelpDialog by remember { mutableStateOf(false) }
     var isSoundEnabledGlobally by remember { mutableStateOf(true) }
     var elapsedTime by remember { mutableStateOf(0) }
     var isGameWon by remember { mutableStateOf(false) }
@@ -244,7 +244,7 @@ fun MazeAppGame() {
             ) {
                 SettingMenu(
                     onDismiss = { showSettingsDialog = false },
-                    onLogoutClick = { // Sử dụng onLogoutClick cho nút Hỗ Trợ
+                    onLogoutClick = {
                         println("Support clicked")
                         showSettingsDialog = false
                         showHelpDialog = true
@@ -266,7 +266,7 @@ fun MazeAppGame() {
                 onDismissRequest = { showWinDialog = false },
                 onPlayAgainClick = {
                     val record = GameRecord(level = gameState.level, elapsedTime = elapsedTime)
-                    HistoryManager.saveGameRecord(context, record)
+                    HistoryManager.saveGameRecord(context, record, username) // Truyền username
                     showWinDialog = false
                     levelSelected = false
                     isPlayingGame = false
@@ -279,7 +279,8 @@ fun MazeAppGame() {
 
         if (showHistoryDialog) {
             HistoryDialog(
-                onDismissRequest = { showHistoryDialog = false }
+                onDismissRequest = { showHistoryDialog = false },
+                username = username // Truyền username
             )
         }
 

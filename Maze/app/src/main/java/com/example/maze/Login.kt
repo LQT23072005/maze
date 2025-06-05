@@ -54,15 +54,16 @@ class LoginRegisterActivity : ComponentActivity() {
                 NavHost(navController = navController, startDestination = "login") {
                     composable("login") {
                         LoginRegisterScreen(
-                            onLoginSuccess = {
-                                navController.navigate("game") {
+                            onLoginSuccess = { username ->
+                                navController.navigate("game/$username") {
                                     popUpTo("login") { inclusive = true }
                                 }
                             }
                         )
                     }
-                    composable("game") {
-                        MazeAppGame()
+                    composable("game/{username}") { backStackEntry ->
+                        val username = backStackEntry.arguments?.getString("username") ?: ""
+                        MazeAppGame(username = username) // Truyền username vào MazeAppGame
                     }
                 }
             }
@@ -73,7 +74,7 @@ class LoginRegisterActivity : ComponentActivity() {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun LoginRegisterScreen(
-    onLoginSuccess: () -> Unit
+    onLoginSuccess: (String) -> Unit // Thay đổi để truyền username
 ) {
     val context = LocalContext.current
     var isLoginScreen by remember { mutableStateOf(true) }
@@ -225,7 +226,7 @@ fun LoginRegisterScreen(
                                     message = "Đăng nhập thành công!"
                                     Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
                                     Log.d("LoginRegister", "User logged in: $username")
-                                    onLoginSuccess()
+                                    onLoginSuccess(username) // Truyền username khi đăng nhập thành công
                                 } else {
                                     message = "Mật khẩu không đúng!"
                                     Toast.makeText(context, message, Toast.LENGTH_SHORT).show()

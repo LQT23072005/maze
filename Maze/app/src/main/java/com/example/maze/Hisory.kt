@@ -7,11 +7,8 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.mutableStateListOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.snapshots.SnapshotStateList // Import SnapshotStateList
+import androidx.compose.runtime.*
+import androidx.compose.runtime.snapshots.SnapshotStateList
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -31,28 +28,30 @@ data class GameRecord(
 )
 
 object HistoryManager {
-    private const val HISTORY_KEY = "game_history"
+    private const val HISTORY_KEY_PREFIX = "game_history_" // Tiền tố cho key
     private val gson = Gson()
 
     // Lưu lịch sử vào SharedPreferences
-    fun saveGameRecord(context: Context, record: GameRecord) {
+    fun saveGameRecord(context: Context, record: GameRecord, username: String) {
+        val key = "$HISTORY_KEY_PREFIX$username"
         val prefs = context.getSharedPreferences("MazeGamePrefs", Context.MODE_PRIVATE)
         val editor = prefs.edit()
 
         // Lấy danh sách hiện tại
-        val history = getGameHistory(context).toMutableList()
+        val history = getGameHistory(context, username).toMutableList()
         history.add(record)
 
         // Lưu lại danh sách mới
         val json = gson.toJson(history)
-        editor.putString(HISTORY_KEY, json)
+        editor.putString(key, json)
         editor.apply()
     }
 
     // Lấy danh sách lịch sử
-    fun getGameHistory(context: Context): List<GameRecord> {
+    fun getGameHistory(context: Context, username: String): List<GameRecord> {
+        val key = "$HISTORY_KEY_PREFIX$username"
         val prefs = context.getSharedPreferences("MazeGamePrefs", Context.MODE_PRIVATE)
-        val json = prefs.getString(HISTORY_KEY, null)
+        val json = prefs.getString(key, null)
         return if (json != null) {
             val type = object : TypeToken<List<GameRecord>>() {}.type
             gson.fromJson(json, type) ?: emptyList()
@@ -61,30 +60,32 @@ object HistoryManager {
         }
     }
 
-    // Xóa lịch sử (nếu cần)
-    fun clearHistory(context: Context) {
+    // Xóa lịch sử
+    fun clearHistory(context: Context, username: String) {
+        val key = "$HISTORY_KEY_PREFIX$username"
         val prefs = context.getSharedPreferences("MazeGamePrefs", Context.MODE_PRIVATE)
         val editor = prefs.edit()
-        editor.remove(HISTORY_KEY)
+        editor.remove(key)
         editor.apply()
     }
 }
 
 @Composable
-fun rememberGameHistory(context: Context): SnapshotStateList<GameRecord> {
+fun rememberGameHistory(context: Context, username: String): SnapshotStateList<GameRecord> {
     val history = remember { mutableStateListOf<GameRecord>() }
     LaunchedEffect(Unit) {
-        history.addAll(HistoryManager.getGameHistory(context))
+        history.addAll(HistoryManager.getGameHistory(context, username))
     }
     return history
 }
 
 @Composable
 fun HistoryDialog(
-    onDismissRequest: () -> Unit
+    onDismissRequest: () -> Unit,
+    username: String // Thêm tham số username
 ) {
     val context = LocalContext.current
-    val gameHistory = rememberGameHistory(context)
+    val gameHistory = rememberGameHistory(context, username)
 
     Dialog(onDismissRequest = onDismissRequest) {
         Column(
@@ -92,12 +93,11 @@ fun HistoryDialog(
                 .background(Color(0xAA1E1E2F), RoundedCornerShape(16.dp))
                 .padding(16.dp)
                 .fillMaxWidth()
-                .heightIn(max = 400.dp), // Giới hạn chiều cao tối đa
+                .heightIn(max = 400.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // Tiêu đề
             Text(
-                text = "Lịch Sử Chơi",
+                text = "Lịch Sử Chơi - $username", // Hiển thị username trong tiêu đề
                 fontSize = 24.sp,
                 color = Color.Cyan,
                 modifier = Modifier.padding(bottom = 16.dp)
@@ -122,7 +122,6 @@ fun HistoryDialog(
                 }
             }
 
-            // Nút đóng
             Button(
                 onClick = onDismissRequest,
                 colors = ButtonDefaults.buttonColors(
