@@ -11,7 +11,7 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.Maze">
 
-        <!-- Gọi đầy đủ package của lớp LoginRegisterActivity -->
+        <!-- Activity đăng nhập/đăng ký -->
         <activity
             android:name="com.example.login.LoginRegisterActivity"
             android:screenOrientation="landscape"
@@ -20,6 +20,18 @@
             <intent-filter>
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>
+            </intent-filter>
+        </activity>
+
+        <!-- Activity chính chứa trò chơi và thanh toán -->
+        <activity
+            android:name="com.example.maze.MainActivity"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="mazeapp" />
             </intent-filter>
         </activity>
 

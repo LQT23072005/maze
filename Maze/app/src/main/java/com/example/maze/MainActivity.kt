@@ -1,11 +1,12 @@
 package com.example.maze
 
+import android.content.Context
 import android.content.Intent
 import android.media.MediaPlayer
 import android.net.Uri
 import android.os.Bundle
-import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.appcompat.app.AppCompatActivity
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -21,25 +22,94 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
+import com.google.gson.Gson
+import com.google.gson.reflect.TypeToken
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import java.text.SimpleDateFormat
+import java.util.*
+import javax.crypto.Mac
+import javax.crypto.spec.SecretKeySpec
+import java.math.BigInteger
 
-class MainActivity : ComponentActivity() {
+// Hàm hmacSHA512 ở cấp độ top-level
+fun hmacSHA512(key: String, data: String): String {
+    val hmacSha512 = Mac.getInstance("HmacSHA512")
+    val secretKey = SecretKeySpec(key.toByteArray(), "HmacSHA512")
+    hmacSha512.init(secretKey)
+    val hash = hmacSha512.doFinal(data.toByteArray())
+    return String.format("%0128x", BigInteger(1, hash)).lowercase()
+}
+
+class MainActivity : AppCompatActivity() {
+    private var purchasedIcons: MutableList<Int> = mutableListOf()
+    private var username: String = ""
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        // Lấy username từ Intent
+        username = intent.getStringExtra("username") ?: ""
+        // Lưu username vào SharedPreferences
+        val sharedPreferences = getSharedPreferences("MazeGamePrefs", MODE_PRIVATE)
+        sharedPreferences.edit().putString("currentUsername", username).apply()
+        // Tải purchasedIcons
+        loadPurchasedIcons()
+        handlePaymentCallback(intent)
         setContent {
-            MazeAppGame()
+            MazeAppGame(username)
+        }
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        handlePaymentCallback(intent)
+    }
+
+    private fun loadPurchasedIcons() {
+        val sharedPreferences = getSharedPreferences("MazeGamePrefs", MODE_PRIVATE)
+        val purchasedIconsJson = sharedPreferences.getString("purchasedIcons_$username", "[]")
+        val type = object : TypeToken<List<Int>>() {}.type
+        purchasedIcons = Gson().fromJson(purchasedIconsJson, type) ?: mutableListOf()
+    }
+
+    private fun handlePaymentCallback(intent: Intent) {
+        intent.data?.let { uri ->
+            if (uri.scheme == "mazeapp" && uri.host == "payment-callback") {
+                val vnp_ResponseCode = uri.getQueryParameter("vnp_ResponseCode")
+                val iconId = uri.getQueryParameter("iconId")?.toIntOrNull() ?: 0
+                if (vnp_ResponseCode == "00") {
+                    // Thanh toán thành công
+                    val sharedPreferences = getSharedPreferences("MazeGamePrefs", MODE_PRIVATE)
+                    val editor = sharedPreferences.edit()
+                    if (!purchasedIcons.contains(iconId)) {
+                        purchasedIcons.add(iconId)
+                        editor.putString("purchasedIcons_$username", Gson().toJson(purchasedIcons))
+                        editor.apply()
+                    }
+                } else {
+                    // Thanh toán thất bại
+                    println("Thanh toán thất bại: $vnp_ResponseCode")
+                }
+            }
         }
     }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun MazeAppGame(username: String = "") {
+fun MazeAppGame(username: String) {
+    val context = LocalContext.current
+    // Tải purchasedIcons từ SharedPreferences
+    val purchasedIconsState = remember {
+        val sharedPreferences = context.getSharedPreferences("MazeGamePrefs", Context.MODE_PRIVATE)
+        val purchasedIconsJson = sharedPreferences.getString("purchasedIcons_$username", "[]")
+        val type = object : TypeToken<List<Int>>() {}.type
+        mutableStateOf(Gson().fromJson<List<Int>>(purchasedIconsJson, type) ?: emptyList())
+    }
     var gameState by remember { mutableStateOf(GameState()) }
     var levelSelected by remember { mutableStateOf(false) }
-    var purchasedIcons by remember { mutableStateOf(listOf<Int>()) }
     var isPlayingGame by remember { mutableStateOf(false) }
     var showSettingsDialog by remember { mutableStateOf(false) }
     var showWinDialog by remember { mutableStateOf(false) }
@@ -55,7 +125,6 @@ fun MazeAppGame(username: String = "") {
     var selectedIconId by remember { mutableStateOf(R.drawable.iconone) }
 
     val coroutineScope = rememberCoroutineScope()
-    val context = LocalContext.current
 
     // Khởi tạo MediaPlayer
     val mediaPlayer = remember {
@@ -100,10 +169,48 @@ fun MazeAppGame(username: String = "") {
         timerJob?.cancel()
     }
 
+    fun generateVnpayPaymentUrl(context: Context, iconId: Int): String {
+        val vnp_TmnCode = "6E03FFCJ"
+        val vnp_HashSecret = "8NIZ0VS17CGLAY964LR1YPF80B5XZXGM"
+        val vnp_Url = "https://sandbox.vnpayment.vn/paymentv2/vpcpay.html"
+        val vnp_ReturnUrl = "mazeapp://payment-callback?iconId=$iconId"
+        val vnp_Amount = 22000 * 100 // Nhân 100 theo yêu cầu của VNPAY
+        val vnp_OrderInfo = "Mua icon $iconId"
+        val vnp_CreateDate = SimpleDateFormat("yyyyMMddHHmmss").format(Date())
+        val vnp_IpAddr = "127.0.0.1"
+
+        // Tạo danh sách tham số
+        val vnp_Params = hashMapOf(
+            "vnp_Amount" to vnp_Amount.toString(),
+            "vnp_Command" to "pay",
+            "vnp_CreateDate" to vnp_CreateDate,
+            "vnp_CurrCode" to "VND",
+            "vnp_IpAddr" to vnp_IpAddr,
+            "vnp_Locale" to "vn",
+            "vnp_OrderInfo" to vnp_OrderInfo,
+            "vnp_OrderType" to "other",
+            "vnp_ReturnUrl" to vnp_ReturnUrl,
+            "vnp_TmnCode" to vnp_TmnCode,
+            "vnp_TxnRef" to "TXN${System.currentTimeMillis()}",
+            "vnp_Version" to "2.1.0"
+        )
+
+        // Sắp xếp tham số theo thứ tự alphabet
+        val sortedParams = vnp_Params.toList().sortedBy { it.first }
+            .joinToString("&") { "${it.first}=${java.net.URLEncoder.encode(it.second, "UTF-8")}" }
+
+        // Tạo chữ ký
+        val secureHash = hmacSHA512(vnp_HashSecret, sortedParams)
+
+        // Tạo URL hoàn chỉnh
+        val finalUrl = "$vnp_Url?$sortedParams&vnp_SecureHash=$secureHash"
+        println("Generated VNPAY URL: $finalUrl")
+        return finalUrl
+    }
+
     fun openVnpayUrlForIcon(iconId: Int) {
-        val url = "https://sandbox.vnpayment.vn/paymentv2/vpcpay.html?amount=22000&iconId=$iconId"
+        val url = generateVnpayPaymentUrl(context, iconId)
         val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url))
-        intent.setPackage("com.android.chrome")
         try {
             context.startActivity(intent)
         } catch (e: Exception) {
@@ -138,12 +245,12 @@ fun MazeAppGame(username: String = "") {
                 selectedIconId = selectedIconId,
                 onIconSelected = { iconId -> selectedIconId = iconId },
                 onBuyIcon = { iconId ->
-                    if (!purchasedIcons.contains(iconId)) {
+                    if (!purchasedIconsState.value.contains(iconId)) {
                         openVnpayUrlForIcon(iconId)
                     }
                 },
                 onCloseClick = { isChoosingIcon = false },
-                purchasedIcons = purchasedIcons
+                purchasedIcons = purchasedIconsState.value
             )
         } else if (!levelSelected) {
             MenuScreen(
@@ -279,7 +386,7 @@ fun MazeAppGame(username: String = "") {
                     elapsedTime = 0
                 },
                 elapsedTime = elapsedTime,
-                level = gameState.level // Truyền level
+                level = gameState.level
             )
         }
 
