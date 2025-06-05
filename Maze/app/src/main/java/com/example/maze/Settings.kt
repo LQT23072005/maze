@@ -18,7 +18,8 @@ fun SettingMenu(
     onDismiss: () -> Unit,
     onLogoutClick: () -> Unit,
     onToggleSound: () -> Unit,
-    onViewHistoryClick: () -> Unit
+    onViewHistoryClick: () -> Unit,
+    onViewLeaderboardClick: () -> Unit // Thêm callback cho bảng xếp hạng
 ) {
     Box(
         modifier = Modifier
@@ -30,11 +31,11 @@ fun SettingMenu(
             modifier = Modifier
                 .align(Alignment.Center)
                 .fillMaxWidth(0.4f)
-                .wrapContentHeight() // Thay fillMaxHeight bằng wrapContentHeight để tự điều chỉnh
+                .wrapContentHeight()
                 .background(Color(0xAA001F3D), shape = RoundedCornerShape(12.dp))
                 .border(2.dp, Color(0xFF80DEEA), RoundedCornerShape(12.dp))
                 .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp) // Thêm khoảng cách đều giữa các nút
+            verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             // Nút Hỗ Trợ
             TextButton(
@@ -60,9 +61,9 @@ fun SettingMenu(
                 Text("Âm thanh", color = Color.White)
             }
 
-            // Nút Hồ Sơ
+            // Nút Xếp Hạng
             TextButton(
-                onClick = onDismiss,
+                onClick = onViewLeaderboardClick,
                 modifier = Modifier
                     .fillMaxWidth()
                     .background(Color(0xFF00BCD4), shape = RoundedCornerShape(8.dp))
@@ -84,9 +85,9 @@ fun SettingMenu(
                 Text("Xem Lịch Sử", color = Color.White)
             }
 
-            // Nút Thoát (sửa từ "Đóng" thành "Thoát" và gán đúng callback)
+            // Nút Thoát
             TextButton(
-                onClick = onLogoutClick, // Giả sử "Thoát" liên quan đến logout
+                onClick = onLogoutClick,
                 modifier = Modifier
                     .fillMaxWidth()
                     .background(Color(0xFF00BCD4), shape = RoundedCornerShape(8.dp))
@@ -96,7 +97,6 @@ fun SettingMenu(
                 Text("Thoát", color = Color.White)
             }
 
-            // Thêm Spacer để tạo không gian nếu cần
             Spacer(modifier = Modifier.height(8.dp))
         }
     }

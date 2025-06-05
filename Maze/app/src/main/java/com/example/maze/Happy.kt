@@ -1,4 +1,3 @@
-// Happy.kt
 package com.example.maze
 
 import androidx.compose.foundation.Image
@@ -23,8 +22,12 @@ import androidx.compose.ui.window.Dialog
 fun HappyDialog(
     onDismissRequest: () -> Unit,
     onPlayAgainClick: () -> Unit,
-    elapsedTime: Int // Thêm tham số thời gian
+    elapsedTime: Int, // Thời gian hoàn thành
+    level: Int // Thêm cấp độ để tính điểm
 ) {
+    // Tính điểm: score = (level * 1000) - elapsedTime
+    val score = (level * 1000) - elapsedTime
+
     Dialog(onDismissRequest = onDismissRequest) {
         Column(
             modifier = Modifier
@@ -51,15 +54,15 @@ fun HappyDialog(
                 modifier = Modifier.padding(bottom = 8.dp)
             )
 
-            // Thông báo thời gian
+            // Thông báo điểm
             Text(
-                text = "Bạn đã giải mê cung trong",
+                text = "Điểm của bạn là",
                 fontSize = 16.sp,
                 color = Color.White,
                 modifier = Modifier.padding(bottom = 4.dp)
             )
             Text(
-                text = "${elapsedTime} giây",
+                text = "$score điểm",
                 fontWeight = FontWeight.Bold,
                 fontSize = 20.sp,
                 color = Color.Yellow,

@@ -36,7 +36,7 @@ class MainActivity : ComponentActivity() {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun MazeAppGame(username: String = "") { // Thêm tham số username
+fun MazeAppGame(username: String = "") {
     var gameState by remember { mutableStateOf(GameState()) }
     var levelSelected by remember { mutableStateOf(false) }
     var purchasedIcons by remember { mutableStateOf(listOf<Int>()) }
@@ -46,6 +46,7 @@ fun MazeAppGame(username: String = "") { // Thêm tham số username
     var showHistoryDialog by remember { mutableStateOf(false) }
     var showSoundDialog by remember { mutableStateOf(false) }
     var showHelpDialog by remember { mutableStateOf(false) }
+    var showLeaderboardDialog by remember { mutableStateOf(false) }
     var isSoundEnabledGlobally by remember { mutableStateOf(true) }
     var elapsedTime by remember { mutableStateOf(0) }
     var isGameWon by remember { mutableStateOf(false) }
@@ -256,6 +257,10 @@ fun MazeAppGame(username: String = "") { // Thêm tham số username
                     onViewHistoryClick = {
                         showSettingsDialog = false
                         showHistoryDialog = true
+                    },
+                    onViewLeaderboardClick = {
+                        showSettingsDialog = false
+                        showLeaderboardDialog = true
                     }
                 )
             }
@@ -266,21 +271,22 @@ fun MazeAppGame(username: String = "") { // Thêm tham số username
                 onDismissRequest = { showWinDialog = false },
                 onPlayAgainClick = {
                     val record = GameRecord(level = gameState.level, elapsedTime = elapsedTime)
-                    HistoryManager.saveGameRecord(context, record, username) // Truyền username
+                    HistoryManager.saveGameRecord(context, record, username)
                     showWinDialog = false
                     levelSelected = false
                     isPlayingGame = false
                     isGameWon = false
                     elapsedTime = 0
                 },
-                elapsedTime = elapsedTime
+                elapsedTime = elapsedTime,
+                level = gameState.level // Truyền level
             )
         }
 
         if (showHistoryDialog) {
             HistoryDialog(
                 onDismissRequest = { showHistoryDialog = false },
-                username = username // Truyền username
+                username = username
             )
         }
 
@@ -296,6 +302,12 @@ fun MazeAppGame(username: String = "") { // Thêm tham số username
         if (showHelpDialog) {
             HelpDialog(
                 onDismiss = { showHelpDialog = false }
+            )
+        }
+
+        if (showLeaderboardDialog) {
+            LeaderboardDialog(
+                onDismissRequest = { showLeaderboardDialog = false }
             )
         }
     }
