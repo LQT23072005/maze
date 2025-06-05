@@ -33,7 +33,6 @@ import javax.crypto.Mac
 import javax.crypto.spec.SecretKeySpec
 import java.math.BigInteger
 
-// Hàm hmacSHA512 ở cấp độ top-level
 fun hmacSHA512(key: String, data: String): String {
     val hmacSha512 = Mac.getInstance("HmacSHA512")
     val secretKey = SecretKeySpec(key.toByteArray(), "HmacSHA512")
@@ -48,12 +47,9 @@ class MainActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        // Lấy username từ Intent
         username = intent.getStringExtra("username") ?: ""
-        // Lưu username vào SharedPreferences
         val sharedPreferences = getSharedPreferences("MazeGamePrefs", MODE_PRIVATE)
         sharedPreferences.edit().putString("currentUsername", username).apply()
-        // Tải purchasedIcons
         loadPurchasedIcons()
         handlePaymentCallback(intent)
         setContent {
@@ -80,7 +76,6 @@ class MainActivity : AppCompatActivity() {
                 val vnp_ResponseCode = uri.getQueryParameter("vnp_ResponseCode")
                 val iconId = uri.getQueryParameter("iconId")?.toIntOrNull() ?: 0
                 if (vnp_ResponseCode == "00") {
-                    // Thanh toán thành công
                     val sharedPreferences = getSharedPreferences("MazeGamePrefs", MODE_PRIVATE)
                     val editor = sharedPreferences.edit()
                     if (!purchasedIcons.contains(iconId)) {
@@ -89,8 +84,7 @@ class MainActivity : AppCompatActivity() {
                         editor.apply()
                     }
                 } else {
-                    // Thanh toán thất bại
-                    println("Thanh toán thất bại: $vnp_ResponseCode")
+                    android.widget.Toast.makeText(this, "Thanh toán thất bại: $vnp_ResponseCode", android.widget.Toast.LENGTH_SHORT).show()
                 }
             }
         }
@@ -101,7 +95,6 @@ class MainActivity : AppCompatActivity() {
 @Composable
 fun MazeAppGame(username: String) {
     val context = LocalContext.current
-    // Tải purchasedIcons từ SharedPreferences
     val purchasedIconsState = remember {
         val sharedPreferences = context.getSharedPreferences("MazeGamePrefs", Context.MODE_PRIVATE)
         val purchasedIconsJson = sharedPreferences.getString("purchasedIcons_$username", "[]")
@@ -126,15 +119,15 @@ fun MazeAppGame(username: String) {
 
     val coroutineScope = rememberCoroutineScope()
 
-    // Khởi tạo MediaPlayer
     val mediaPlayer = remember {
-        MediaPlayer.create(context, R.raw.background_music) ?: run {
-            println("Failed to load background music")
+        MediaPlayer.create(context, R.raw.background_music)?.apply {
+            isLooping = true
+        } ?: run {
+            android.widget.Toast.makeText(context, "Không thể tải nhạc nền", android.widget.Toast.LENGTH_SHORT).show()
             null
         }
     }
     DisposableEffect(mediaPlayer) {
-        mediaPlayer?.isLooping = true
         if (isSoundEnabledGlobally) {
             mediaPlayer?.start()
         }
@@ -144,7 +137,6 @@ fun MazeAppGame(username: String) {
         }
     }
 
-    // Đồng bộ hóa trạng thái âm thanh
     LaunchedEffect(isSoundEnabledGlobally, mediaPlayer) {
         mediaPlayer?.let {
             if (isSoundEnabledGlobally && !it.isPlaying) {
@@ -174,12 +166,11 @@ fun MazeAppGame(username: String) {
         val vnp_HashSecret = "8NIZ0VS17CGLAY964LR1YPF80B5XZXGM"
         val vnp_Url = "https://sandbox.vnpayment.vn/paymentv2/vpcpay.html"
         val vnp_ReturnUrl = "mazeapp://payment-callback?iconId=$iconId"
-        val vnp_Amount = 22000 * 100 // Nhân 100 theo yêu cầu của VNPAY
+        val vnp_Amount = 22000 * 100
         val vnp_OrderInfo = "Mua icon $iconId"
         val vnp_CreateDate = SimpleDateFormat("yyyyMMddHHmmss").format(Date())
         val vnp_IpAddr = "127.0.0.1"
 
-        // Tạo danh sách tham số
         val vnp_Params = hashMapOf(
             "vnp_Amount" to vnp_Amount.toString(),
             "vnp_Command" to "pay",
@@ -195,17 +186,10 @@ fun MazeAppGame(username: String) {
             "vnp_Version" to "2.1.0"
         )
 
-        // Sắp xếp tham số theo thứ tự alphabet
         val sortedParams = vnp_Params.toList().sortedBy { it.first }
             .joinToString("&") { "${it.first}=${java.net.URLEncoder.encode(it.second, "UTF-8")}" }
-
-        // Tạo chữ ký
         val secureHash = hmacSHA512(vnp_HashSecret, sortedParams)
-
-        // Tạo URL hoàn chỉnh
-        val finalUrl = "$vnp_Url?$sortedParams&vnp_SecureHash=$secureHash"
-        println("Generated VNPAY URL: $finalUrl")
-        return finalUrl
+        return "$vnp_Url?$sortedParams&vnp_SecureHash=$secureHash"
     }
 
     fun openVnpayUrlForIcon(iconId: Int) {
@@ -214,7 +198,7 @@ fun MazeAppGame(username: String) {
         try {
             context.startActivity(intent)
         } catch (e: Exception) {
-            context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
+            android.widget.Toast.makeText(context, "Không thể mở URL thanh toán", android.widget.Toast.LENGTH_SHORT).show()
         }
     }
 
@@ -353,7 +337,6 @@ fun MazeAppGame(username: String) {
                 SettingMenu(
                     onDismiss = { showSettingsDialog = false },
                     onLogoutClick = {
-                        println("Support clicked")
                         showSettingsDialog = false
                         showHelpDialog = true
                     },
@@ -378,7 +361,7 @@ fun MazeAppGame(username: String) {
                 onDismissRequest = { showWinDialog = false },
                 onPlayAgainClick = {
                     val record = GameRecord(level = gameState.level, elapsedTime = elapsedTime)
-                    HistoryManager.saveGameRecord(context, record, username)
+                    History.saveGameRecord(context, record, username)
                     showWinDialog = false
                     levelSelected = false
                     isPlayingGame = false
